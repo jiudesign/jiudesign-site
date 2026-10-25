@@ -14,6 +14,8 @@ hero:
 
 contact:
   phone: 010-5117-0832
+  # 제작 문의 폼이 보낼 Google Apps Script 웹 앱 주소 (비워두면 폼이 "준비 중"으로 표시됨)
+  form_endpoint: "https://script.google.com/macros/s/AKfycbzlma9aZ16NiYzhblda4z9Qqlle99LvbwNZp9i12AuMkLDycDFTvB4Jf7yTbqWHnco2/exec"
   # 카카오톡 채널 / 오픈채팅 주소가 있으면 넣으세요. 비워두면 버튼이 숨겨집니다.
   kakao: ""
   email: ""

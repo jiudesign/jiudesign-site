@@ -31,7 +31,8 @@
     <h1 class="svc__title">{{ service.headline }}</h1>
     <p class="svc__lead">{{ service.lead }}</p>
     <div class="hero__actions">
-      <a class="btn" href="tel:{{ site.contact.phone|tel }}">{{ service.name }} 문의 {{ site.contact.phone }}</a>
+      <a class="btn" href="/contact/?type={{ service.name|replace(' 제작','')|urlencode }}">{{ service.name }} 문의하기</a>
+      <a class="btn btn--ghost" href="tel:{{ site.contact.phone|tel }}">{{ site.contact.phone }}</a>
       {% if service.category %}<a class="btn btn--ghost" href="/work/{{ service.category.slug }}/">포트폴리오 보기</a>{% endif %}
     </div>
   </header>

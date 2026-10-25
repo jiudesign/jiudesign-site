@@ -712,6 +712,7 @@ def build(mode: str = "skip") -> None:
         for sv in services:
             render("service.html", sv["url"], service=sv,
                    works=(by_cat[sv["category"]["slug"]][:8] if sv["category"] else []))
+    render("contact.html", "/contact/")
     render("notes.html", "/notes/", notes=notes)
     for note in notes:
         render("note.html", note.url, note=note)

@@ -13,7 +13,7 @@
       <p class="product__price">{{ p.price }}</p>
       {% if p.includes %}<ul class="product__list">{% for i in p.includes %}<li>{{ i }}</li>{% endfor %}</ul>{% endif %}
       {% if p.note %}<p class="product__note">{{ p.note }}</p>{% endif %}
-      <a class="btn btn--ghost" href="tel:{{ site.contact.phone|tel }}">{{ p.name }} 문의</a>
+      <a class="btn btn--ghost" href="/contact/">{{ p.name }} 문의</a>
     </section>
     {% endfor %}
   </div>

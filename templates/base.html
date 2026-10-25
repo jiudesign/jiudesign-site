@@ -46,7 +46,7 @@
       <a href="/notes/" {% if page_url.startswith('/notes/') %}aria-current="page"{% endif %}>{{ site.pages.notes }}</a>
       <a href="/products/" {% if page_url.startswith('/products/') %}aria-current="page"{% endif %}>{{ site.pages.products }}</a>
     </nav>
-    <a class="btn btn--small" href="tel:{{ site.contact.phone|tel }}">제작 문의</a>
+    <a class="btn btn--small" href="/contact/" {% if page_url.startswith('/contact/') %}aria-current="page"{% endif %}>제작 문의</a>
   </div>
 </header>
 
@@ -60,6 +60,7 @@
       <p class="foot__ask">작업할 제품이 있으신가요?</p>
       <a class="foot__phone" href="tel:{{ site.contact.phone|tel }}">{{ site.contact.phone }}</a>
       <div class="foot__actions">
+        <a class="btn" href="/contact/">온라인으로 문의하기</a>
         {% if site.contact.kakao %}<a class="btn" href="{{ site.contact.kakao }}" rel="noopener">카카오톡으로 문의</a>{% endif %}
         {% if site.contact.email %}<a class="btn btn--ghost" href="mailto:{{ site.contact.email }}">이메일 보내기</a>{% endif %}
         {% for l in site.contact.links %}<a class="btn btn--ghost" href="{{ l.url }}" rel="noopener">{{ l.label }}</a>{% endfor %}
