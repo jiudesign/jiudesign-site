@@ -1,0 +1,57 @@
+# ─────────────────────────────────────────────
+# 사이트 기본 정보 — 여기만 고치면 전체 페이지에 반영됩니다.
+# ─────────────────────────────────────────────
+name: JIUDESIGN
+title: 지우디자인 스튜디오
+description: 상세페이지·브로슈어·포스터·패키지·배달앱 디자인. 대표님과 함께 그려가는 디자인을 합니다.
+# 배포 후 실제 주소로 바꿔주세요 (sitemap, 공유 미리보기에 사용)
+base_url: https://jiudesign.pages.dev
+lang: ko
+
+hero:
+  headline: 대표님과 함께 그려가는 디자인을 합니다.
+  sub: 그리는 꿈은 현실이 되고, 현실은 결과로 이어집니다. 팔리는 상세페이지부터 매장 배너까지 결과로 보여드립니다.
+
+contact:
+  phone: 010-5117-0832
+  # 카카오톡 채널 / 오픈채팅 주소가 있으면 넣으세요. 비워두면 버튼이 숨겨집니다.
+  kakao: ""
+  email: ""
+  # 크몽 등 외부 의뢰 채널 (선택)
+  links: []
+  #  - label: 크몽
+  #    url: https://kmong.com/...
+
+# 메뉴 순서 = 이 목록 순서. slug는 주소(/work/<slug>/)가 됩니다.
+categories:
+  - slug: detail-page
+    name: 상세페이지 디자인
+    intro: 구매 전 고객이 궁금해하는 것을 순서대로 풀어내는 온라인 상세페이지.
+  - slug: brochure
+    name: 브로슈어 팜플렛 디자인
+    intro: 회사와 제품을 한 장, 한 권에 담는 인쇄물.
+  - slug: poster
+    name: 포스터 디자인
+    intro: 멀리서도 읽히는 한 장의 메시지.
+  - slug: package
+    name: 패키지 디자인
+    intro: 진열대와 택배 상자에서 먼저 눈에 띄는 패키지.
+  - slug: delivery-app
+    name: 배달앱 디자인
+    intro: 배달앱 가게 배너, 이벤트 배너, 메뉴 이미지.
+  - slug: ai
+    name: AI 디자인
+    intro: AI 이미지 생성을 활용한 제품 연출과 비주얼.
+
+# 상단 메뉴에 추가로 보이는 페이지
+pages:
+  notes: 디자인 노트
+  products: 디자인 상품
+
+# 이미지 처리 설정
+images:
+  full_width: 1720        # 상세 이미지 저장 폭(px). 860px 상세페이지의 2배 해상도
+  slice_height: 3000      # 세로로 긴 이미지를 이 높이 단위로 잘라서 저장 (로딩 속도 + 25MiB 제한 대응)
+  thumb_width: 640
+  thumb_height: 960       # 썸네일은 상단 기준으로 잘라 세로형 2:3
+  quality: 82

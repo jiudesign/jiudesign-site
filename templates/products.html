@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% set title = site.pages.products %}
+{% block main %}
+<section class="section section--page">
+  <div class="pagehead">
+    <h1 class="pagehead__title">{{ site.pages.products }}</h1>
+    <p class="pagehead__intro">자주 의뢰받는 작업을 정해진 구성으로 묶었습니다. 제품과 일정에 맞춰 조정해 드립니다.</p>
+  </div>
+  <div class="products">
+    {% for p in products %}
+    <section class="product">
+      <h2 class="product__name">{{ p.name }}</h2>
+      <p class="product__price">{{ p.price }}</p>
+      {% if p.includes %}<ul class="product__list">{% for i in p.includes %}<li>{{ i }}</li>{% endfor %}</ul>{% endif %}
+      {% if p.note %}<p class="product__note">{{ p.note }}</p>{% endif %}
+      <a class="btn btn--ghost" href="tel:{{ site.contact.phone|tel }}">{{ p.name }} 문의</a>
+    </section>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

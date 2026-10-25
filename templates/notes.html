@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% set title = site.pages.notes %}
+{% block main %}
+<section class="section section--page section--narrow">
+  <div class="pagehead">
+    <h1 class="pagehead__title">{{ site.pages.notes }}</h1>
+    <p class="pagehead__intro">작업하면서 정리한 생각과 소식입니다.</p>
+  </div>
+  {% if notes %}
+  <ul class="notelist">
+    {% for n in notes %}
+    <li><a href="{{ n.url }}"><time datetime="{{ n.date }}">{{ n.date|kdate }}</time><strong>{{ n.title }}</strong>{% if n.summary %}<span>{{ n.summary }}</span>{% endif %}</a></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty"><p>첫 노트를 준비하고 있습니다.</p></div>
+  {% endif %}
+</section>
+{% endblock %}

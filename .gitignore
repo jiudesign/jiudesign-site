@@ -1,0 +1,9 @@
+dist/
+.cache/
+__pycache__/
+*.pyc
+.venv/
+.wrangler/
+content/portfolio.new.yaml
+.DS_Store
+Thumbs.db

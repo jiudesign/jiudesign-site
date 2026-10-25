@@ -1,0 +1,19 @@
+{% macro card(w, eager=false) %}
+<a class="card" href="{{ w.url }}">
+  <span class="card__frame">
+    <img src="{{ w.picture.thumb }}" width="{{ w.picture.thumb_w }}" height="{{ w.picture.thumb_h }}"
+         alt="{{ w.title }}" {% if not eager %}loading="lazy"{% endif %} decoding="async">
+  </span>
+  <span class="card__cat">{{ w.category.name }}</span>
+  <span class="card__title">{{ w.title }}</span>
+</a>
+{% endmacro %}
+
+{% macro filters(current) %}
+<nav class="filters" aria-label="분류별 보기">
+  <a href="/work/" {% if not current %}aria-current="page"{% endif %}>전체</a>
+  {% for c in categories if by_cat[c.slug] %}
+  <a href="/work/{{ c.slug }}/" {% if current and current.slug == c.slug %}aria-current="page"{% endif %}>{{ c.name }}<sup>{{ by_cat[c.slug]|length }}</sup></a>
+  {% endfor %}
+</nav>
+{% endmacro %}

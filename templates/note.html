@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% set title = note.title %}
+{% set description = note.summary %}
+{% block main %}
+<article class="section section--page section--narrow note">
+  <a class="work__cat" href="/notes/">{{ site.pages.notes }}</a>
+  <h1 class="pagehead__title">{{ note.title }}</h1>
+  <time class="note__date" datetime="{{ note.date }}">{{ note.date|kdate }}</time>
+  <div class="prose">{{ note.html|safe }}</div>
+</article>
+{% endblock %}

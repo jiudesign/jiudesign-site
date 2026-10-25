@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="{{ site.lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{% set page_title = (title ~ " | " ~ site.title) if title is defined and title else site.title %}
+{% set page_desc = description if description is defined and description else site.description %}
+<title>{{ page_title }}</title>
+<meta name="description" content="{{ page_desc }}">
+<link rel="canonical" href="{{ base_url }}{{ page_url }}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{ site.title }}">
+<meta property="og:title" content="{{ page_title }}">
+<meta property="og:description" content="{{ page_desc }}">
+<meta property="og:url" content="{{ base_url }}{{ page_url }}">
+{% set og = og_override if og_override is defined and og_override else og_image %}
+{% if og %}<meta property="og:image" content="{{ og if og.startswith('http') else base_url ~ og }}">{% endif %}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#f6f7f9">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="{{ asset('style.css') }}">
+{% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+
+<header class="top">
+  <div class="top__inner">
+    <a class="logo" href="/" aria-label="{{ site.title }} 처음으로">
+      <svg viewBox="0 0 28 28" width="28" height="28" aria-hidden="true"><rect x="1" y="1" width="26" height="26" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 7v10.5a3.5 3.5 0 0 1-7 0" transform="translate(6 1)" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"/></svg>
+      <span>{{ site.name }}</span>
+    </a>
+    <nav class="nav" aria-label="주 메뉴">
+      <a href="/work/" {% if page_url.startswith('/work/') %}aria-current="page"{% endif %}>포트폴리오</a>
+      <a href="/notes/" {% if page_url.startswith('/notes/') %}aria-current="page"{% endif %}>{{ site.pages.notes }}</a>
+      <a href="/products/" {% if page_url.startswith('/products/') %}aria-current="page"{% endif %}>{{ site.pages.products }}</a>
+    </nav>
+    <a class="btn btn--small" href="tel:{{ site.contact.phone|tel }}">제작 문의</a>
+  </div>
+</header>
+
+<main id="main">
+{% block main %}{% endblock %}
+</main>
+
+<footer class="foot" id="contact">
+  <div class="foot__inner">
+    <div class="foot__call">
+      <p class="foot__ask">작업할 제품이 있으신가요?</p>
+      <a class="foot__phone" href="tel:{{ site.contact.phone|tel }}">{{ site.contact.phone }}</a>
+      <div class="foot__actions">
+        {% if site.contact.kakao %}<a class="btn" href="{{ site.contact.kakao }}" rel="noopener">카카오톡으로 문의</a>{% endif %}
+        {% if site.contact.email %}<a class="btn btn--ghost" href="mailto:{{ site.contact.email }}">이메일 보내기</a>{% endif %}
+        {% for l in site.contact.links %}<a class="btn btn--ghost" href="{{ l.url }}" rel="noopener">{{ l.label }}</a>{% endfor %}
+      </div>
+    </div>
+    <nav class="foot__nav" aria-label="포트폴리오 분류">
+      {% for c in categories %}<a href="/work/{{ c.slug }}/">{{ c.name }}</a>{% endfor %}
+    </nav>
+    <p class="foot__copy">© {{ year }} {{ site.title }}</p>
+  </div>
+</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "_macros.html" import card, filters %}
+{% block body_class %}is-home{% endblock %}
+{% block main %}
+<section class="hero">
+  <div class="hero__text">
+    <h1 class="hero__title">{{ site.hero.headline }}</h1>
+    <p class="hero__sub">{{ site.hero.sub }}</p>
+    <div class="hero__actions">
+      <a class="btn" href="/work/">작업물 보기</a>
+      <a class="btn btn--ghost" href="tel:{{ site.contact.phone|tel }}">{{ site.contact.phone }}</a>
+    </div>
+  </div>
+
+  {% if featured %}
+  <figure class="viewer" aria-label="{{ featured.title }} 미리보기">
+    <a class="viewer__screen" href="{{ featured.url }}" tabindex="-1" aria-hidden="true">
+      <span class="viewer__reel">
+        {% for s in featured.picture.slices %}<img src="{{ s.url }}" alt="" {% if s.w %}width="{{ s.w }}" height="{{ s.h }}"{% endif %} {% if not loop.first %}loading="lazy"{% endif %}>{% endfor %}
+      </span>
+    </a>
+    <figcaption class="viewer__cap">
+      <a href="{{ featured.url }}">{{ featured.title }}</a>
+      {% if featured.lead %}<span>{{ featured.lead }}</span>{% endif %}
+    </figcaption>
+  </figure>
+  {% endif %}
+</section>
+
+<section class="section" aria-labelledby="works-h">
+  <div class="section__head">
+    <h2 id="works-h" class="section__title">작업물</h2>
+    <p class="section__note">디자이너를 시작한 후 차곡차곡 쌓아온 작업물입니다.</p>
+  </div>
+  {{ filters(None) }}
+  <div class="grid">
+    {% for w in works[:12] %}{{ card(w, eager=loop.index <= 4) }}{% endfor %}
+  </div>
+  {% if works|length > 12 %}
+  <p class="more"><a class="btn btn--ghost" href="/work/">작업물 {{ works|length }}개 모두 보기</a></p>
+  {% endif %}
+</section>
+
+{% if notes %}
+<section class="section section--notes" aria-labelledby="notes-h">
+  <div class="section__head">
+    <h2 id="notes-h" class="section__title">{{ site.pages.notes }}</h2>
+    <a class="section__link" href="/notes/">전체 보기</a>
+  </div>
+  <ul class="notelist">
+    {% for n in notes %}
+    <li><a href="{{ n.url }}"><time datetime="{{ n.date }}">{{ n.date|kdate }}</time><strong>{{ n.title }}</strong>{% if n.summary %}<span>{{ n.summary }}</span>{% endif %}</a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

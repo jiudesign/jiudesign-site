@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "_macros.html" import card %}
+{% set title = work.title %}
+{% set description = work.lead or site.description %}
+{% set og_override = work.picture.thumb %}
+{% block body_class %}is-work{% endblock %}
+{% block main %}
+<article class="work">
+  <aside class="work__info">
+    <a class="work__cat" href="/work/{{ work.category.slug }}/">{{ work.category.name }}</a>
+    <h1 class="work__title">{{ work.title }}</h1>
+
+    <dl class="spec">
+      {% if work.client %}<div><dt>의뢰</dt><dd>{{ work.client }}</dd></div>{% endif %}
+      {% if work.summary %}<div><dt>작업 내용</dt><dd>{{ work.summary }}</dd></div>{% endif %}
+      {% if work.concept %}<div><dt>컨셉</dt><dd>{{ work.concept }}</dd></div>{% endif %}
+      {% if work.tone %}<div><dt>톤앤매너</dt><dd>{{ work.tone }}</dd></div>{% endif %}
+      {% if work.structure %}
+      <div><dt>구성</dt><dd><ol class="flow">{% for s in work.structure %}<li>{{ s }}</li>{% endfor %}</ol></dd></div>
+      {% endif %}
+    </dl>
+
+    <div class="work__progress" aria-hidden="true"><span></span></div>
+
+    <a class="btn work__cta" href="tel:{{ site.contact.phone|tel }}">이런 작업 문의하기</a>
+  </aside>
+
+  <div class="work__sheet">
+    {% for s in work.picture.slices %}
+    <img src="{{ s.url }}" alt="{{ work.title }}{% if work.picture.slices|length > 1 %} ({{ loop.index }}/{{ loop.length }}){% endif %}"
+         {% if s.w %}width="{{ s.w }}" height="{{ s.h }}"{% endif %}
+         {% if loop.index > 1 %}loading="lazy"{% endif %} decoding="async">
+    {% endfor %}
+  </div>
+</article>
+
+<nav class="pager" aria-label="같은 분류의 다른 작업">
+  {% if prev %}<a class="pager__prev" href="{{ prev.url }}"><span>이전 작업</span><strong>{{ prev.title }}</strong></a>{% else %}<span></span>{% endif %}
+  {% if next %}<a class="pager__next" href="{{ next.url }}"><span>다음 작업</span><strong>{{ next.title }}</strong></a>{% endif %}
+</nav>
+
+{% if related %}
+<section class="section" aria-labelledby="rel-h">
+  <div class="section__head">
+    <h2 id="rel-h" class="section__title">{{ work.category.name }} 더 보기</h2>
+    <a class="section__link" href="/work/{{ work.category.slug }}/">전체 보기</a>
+  </div>
+  <div class="grid grid--three">
+    {% for w in related %}{{ card(w) }}{% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ asset('progress.js') }}" defer></script>
+{% endblock %}

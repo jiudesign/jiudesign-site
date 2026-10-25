@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "_macros.html" import card, filters %}
+{% set title = category.name if category else "포트폴리오" %}
+{% set description = category.intro if category else site.description %}
+{% block main %}
+<section class="section section--page">
+  <div class="pagehead">
+    <h1 class="pagehead__title">{{ category.name if category else "포트폴리오" }}</h1>
+    <p class="pagehead__intro">{{ category.intro if category else "분류를 골라 보시거나 전체 작업물을 둘러보세요." }}</p>
+  </div>
+  {{ filters(category) }}
+  {% if works %}
+  <div class="grid">
+    {% for w in works %}{{ card(w, eager=loop.index <= 4) }}{% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">
+    <p>이 분류의 작업물은 정리 중입니다. 비슷한 작업이 필요하시면 전화로 먼저 상담해 주세요.</p>
+    <a class="btn" href="tel:{{ site.contact.phone|tel }}">{{ site.contact.phone }}</a>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
