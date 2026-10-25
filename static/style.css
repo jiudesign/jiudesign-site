@@ -131,6 +131,10 @@ p { margin: 0; }
 }
 .filters a:hover { color: var(--ink); border-color: var(--ink); }
 .filters a[aria-current] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.filters--sub { margin-top: -16px; gap: 6px; }
+.filters--sub a { padding: 6px 14px; background: transparent; border-color: transparent; }
+.filters--sub a:hover { border-color: var(--rule); background: var(--surface); }
+.filters--sub a[aria-current] { background: var(--surface); border-color: var(--ink); color: var(--ink); font-weight: 600; }
 .filters sup { font-size: 0.72em; margin-left: 4px; vertical-align: 0.3em; opacity: 0.7; }
 
 /* ── 작업물 그리드 ── */
@@ -151,6 +155,7 @@ p { margin: 0; }
   display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, var(--sheet)); gap: clamp(32px, 5vw, 72px); align-items: start;
 }
 .work__info { position: sticky; top: 96px; }
+.work__crumb { margin: 0; display: flex; flex-wrap: wrap; gap: 6px; color: var(--muted); font-size: var(--step--1); }
 .work__cat { color: var(--muted); font-size: var(--step--1); font-weight: 500; text-underline-offset: 4px; }
 .work__title { margin-top: 10px; font-size: var(--step-2); font-weight: 800; }
 .spec { margin: 28px 0 0; border-top: 1px solid var(--rule); }
@@ -262,8 +267,11 @@ p { margin: 0; }
   .pager { grid-template-columns: 1fr; }
   .pager__next { grid-column: 1; text-align: left; }
 }
-@media (max-width: 380px) {
-  .btn--small { padding: 0 12px; }
+@media (max-width: 440px) {
+  .top__inner { gap: 12px; }
+  .nav { gap: 12px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
+  .top .btn--small { padding: 0 10px; min-height: 36px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .viewer__reel { animation: none; }

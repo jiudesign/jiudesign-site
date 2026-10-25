@@ -1,7 +1,15 @@
 {% extends "base.html" %}
-{% from "_macros.html" import card, filters %}
-{% set title = category.name if category else "포트폴리오" %}
-{% set description = category.intro if category else site.description %}
+{% from "_macros.html" import card, filters, subfilters %}
+{% if sub %}
+  {% set title = sub.name ~ " " ~ category.name %}
+  {% set description = category.name ~ " 중 " ~ sub.name ~ " 작업물입니다." %}
+{% elif category %}
+  {% set title = category.name %}
+  {% set description = category.intro %}
+{% else %}
+  {% set title = "포트폴리오" %}
+  {% set description = site.description %}
+{% endif %}
 {% block main %}
 <section class="section section--page">
   <div class="pagehead">
@@ -9,13 +17,14 @@
     <p class="pagehead__intro">{{ category.intro if category else "분류를 골라 보시거나 전체 작업물을 둘러보세요." }}</p>
   </div>
   {{ filters(category) }}
+  {{ subfilters(category, sub) }}
   {% if works %}
   <div class="grid">
     {% for w in works %}{{ card(w, eager=loop.index <= 4) }}{% endfor %}
   </div>
   {% else %}
   <div class="empty">
-    <p>이 분류의 작업물은 정리 중입니다. 비슷한 작업이 필요하시면 전화로 먼저 상담해 주세요.</p>
+    <p>{% if sub %}{{ sub.name }}{% else %}이 분류의{% endif %} 작업물은 정리 중입니다. 비슷한 작업이 필요하시면 전화로 먼저 상담해 주세요.</p>
     <a class="btn" href="tel:{{ site.contact.phone|tel }}">{{ site.contact.phone }}</a>
   </div>
   {% endif %}

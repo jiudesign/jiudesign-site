@@ -28,8 +28,9 @@ python build.py --serve
 
 브라우저에서 http://localhost:8000 을 열면 됩니다.
 
-> 이미지를 아직 내려받지 않았어도 빌드는 됩니다. 이 경우 Creatorlink 원본 이미지를 임시로 연결해 보여주고 경고를 출력합니다.
-> 배포 전에는 반드시 `--download`로 이미지를 받아두세요 (Creatorlink를 해지하면 원본 링크가 끊길 수 있습니다).
+> 이미지 파일이 없는 작업물은 사이트에서 자동으로 빠지고, 빌드 끝에 경고로 알려줍니다.
+> 나중에 `content/images/` 에 그 파일을 넣으면 다음 빌드부터 다시 나타납니다.
+> 이전 작업 중에 Creatorlink 원본으로 임시 확인하고 싶으면 `python build.py --remote --serve`.
 
 ### Creatorlink에만 있고 여기 없는 작업물 가져오기
 
@@ -57,7 +58,7 @@ python tools/import_creatorlink.py --scan
    | 항목 | 값 |
    |---|---|
    | Framework preset | None |
-   | Build command | `pip install -r requirements.txt && python build.py --strict` |
+   | Build command | `pip install -r requirements.txt && python build.py` |
    | Build output directory | `dist` |
    | 환경 변수 | `PYTHON_VERSION` = `3.12` |
 4. **Save and Deploy** → 1~2분 뒤 `https://<프로젝트명>.pages.dev` 주소가 생깁니다.
@@ -103,6 +104,27 @@ python tools/import_creatorlink.py --scan
 3. `python build.py --serve`로 확인 → GitHub에 push.
 
 `featured: true`를 붙인 작업물이 메인 화면 오른쪽 뷰어에서 흘러갑니다.
+
+### 상세페이지 세부 분류
+상세페이지 디자인 작업물에는 `subcategory:`를 넣어 세부 분류로 나눕니다. 없으면 상세페이지 디자인의 `All`에만 보입니다.
+
+```yaml
+  category: detail-page
+  subcategory: food
+```
+
+| 값 | 화면에 보이는 이름 |
+|---|---|
+| `food` | 식품·건강기능식품 |
+| `living` | 가구·침구·생활용품 |
+| `hobby-pet` | 취미·반려동물 |
+| `beauty-medical` | 화장품·목욕·미용·의료 |
+| `service` | 설치·교육·서비스 |
+| `electronics` | 컴퓨터·가전·휴대폰 |
+| `fashion` | 의류·소품·신발 |
+
+세부 분류의 이름·순서는 `content/site.yaml`의 `subcategories`에서 바꿀 수 있습니다.
+여러 작업물에 한 번에 넣으려면 `python tools/setup_subcategories.py`(미리보기) → `--apply`(적용).
 
 ### 디자인 노트 쓰기
 `content/notes/2026-11-01-제목.md` 형식으로 파일을 만듭니다. 파일 맨 위에 아래를 넣고 본문은 마크다운으로 씁니다.
@@ -159,5 +181,6 @@ build.py             빌더 → dist/
 |---|---|
 | `python build.py` | dist/ 생성 |
 | `python build.py --serve` | 생성 후 http://localhost:8000 미리보기 |
-| `python build.py --strict` | 로컬 이미지가 하나라도 없으면 실패 (배포용) |
+| `python build.py --remote` | 이미지가 없는 작업물을 Creatorlink 원본으로 임시 표시 |
+| `python build.py --strict` | 이미지가 없는 작업물이 하나라도 있으면 실패 |
 | `python build.py --clean` | 이미지 캐시를 지우고 전부 다시 변환 (site.yaml 이미지 설정을 바꿨을 때는 자동으로 다시 변환되므로 보통 불필요) |

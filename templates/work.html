@@ -7,7 +7,11 @@
 {% block main %}
 <article class="work">
   <aside class="work__info">
-    <a class="work__cat" href="/work/{{ work.category.slug }}/">{{ work.category.name }}</a>
+    <p class="work__crumb">
+      <a class="work__cat" href="/work/{{ work.category.slug }}/">{{ work.category.name }}</a>
+      {% if work.subcategory %}<span aria-hidden="true">/</span>
+      <a class="work__cat" href="/work/{{ work.category.slug }}/{{ work.subcategory.slug }}/">{{ work.subcategory.name }}</a>{% endif %}
+    </p>
     <h1 class="work__title">{{ work.title }}</h1>
 
     <dl class="spec">

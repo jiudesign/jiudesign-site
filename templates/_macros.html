@@ -4,16 +4,31 @@
     <img src="{{ w.picture.thumb }}" width="{{ w.picture.thumb_w }}" height="{{ w.picture.thumb_h }}"
          alt="{{ w.title }}" {% if not eager %}loading="lazy"{% endif %} decoding="async">
   </span>
-  <span class="card__cat">{{ w.category.name }}</span>
+  <span class="card__cat">{{ w.subcategory.name if w.subcategory else w.category.name }}</span>
   <span class="card__title">{{ w.title }}</span>
 </a>
 {% endmacro %}
 
+{# 대분류: 작업물이 없어도 항상 보여서 눌러볼 수 있게 #}
 {% macro filters(current) %}
 <nav class="filters" aria-label="분류별 보기">
   <a href="/work/" {% if not current %}aria-current="page"{% endif %}>전체</a>
-  {% for c in categories if by_cat[c.slug] %}
-  <a href="/work/{{ c.slug }}/" {% if current and current.slug == c.slug %}aria-current="page"{% endif %}>{{ c.name }}<sup>{{ by_cat[c.slug]|length }}</sup></a>
+  {% for c in categories %}
+  {% set n = by_cat[c.slug]|length %}
+  <a href="/work/{{ c.slug }}/" {% if current and current.slug == c.slug %}aria-current="page"{% endif %}>{{ c.name }}{% if n %}<sup>{{ n }}</sup>{% endif %}</a>
   {% endfor %}
 </nav>
+{% endmacro %}
+
+{# 세부 분류: 대분류 안에서 한 번 더 나눠 보기 #}
+{% macro subfilters(category, current) %}
+{% if category and category.subcategories %}
+<nav class="filters filters--sub" aria-label="{{ category.name }} 세부 분류">
+  <a href="/work/{{ category.slug }}/" {% if not current %}aria-current="page"{% endif %}>All</a>
+  {% for s in category.subcategories %}
+  {% set n = by_sub[(category.slug, s.slug)]|length %}
+  <a href="/work/{{ category.slug }}/{{ s.slug }}/" {% if current and current.slug == s.slug %}aria-current="page"{% endif %}>{{ s.name }}{% if n %}<sup>{{ n }}</sup>{% endif %}</a>
+  {% endfor %}
+</nav>
+{% endif %}
 {% endmacro %}

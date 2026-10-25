@@ -27,6 +27,21 @@ categories:
   - slug: detail-page
     name: 상세페이지 디자인
     intro: 구매 전 고객이 궁금해하는 것을 순서대로 풀어내는 온라인 상세페이지.
+    subcategories:
+      - slug: food
+        name: 식품·건강기능식품
+      - slug: living
+        name: 가구·침구·생활용품
+      - slug: hobby-pet
+        name: 취미·반려동물
+      - slug: beauty-medical
+        name: 화장품·목욕·미용·의료
+      - slug: service
+        name: 설치·교육·서비스
+      - slug: electronics
+        name: 컴퓨터·가전·휴대폰
+      - slug: fashion
+        name: 의류·소품·신발
   - slug: brochure
     name: 브로슈어 팜플렛 디자인
     intro: 회사와 제품을 한 장, 한 권에 담는 인쇄물.
@@ -36,12 +51,12 @@ categories:
   - slug: package
     name: 패키지 디자인
     intro: 진열대와 택배 상자에서 먼저 눈에 띄는 패키지.
-  - slug: delivery-app
-    name: 배달앱 디자인
-    intro: 배달앱 가게 배너, 이벤트 배너, 메뉴 이미지.
   - slug: ai
     name: AI 디자인
     intro: AI 이미지 생성을 활용한 제품 연출과 비주얼.
+  - slug: delivery-app
+    name: 배달앱 디자인
+    intro: 배달앱 가게 배너, 이벤트 배너, 메뉴 이미지.
 
 # 상단 메뉴에 추가로 보이는 페이지
 pages:

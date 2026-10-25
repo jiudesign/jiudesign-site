@@ -4,8 +4,11 @@ JIUDESIGN 정적 사이트 빌더
 
     python build.py            # dist/ 에 사이트 생성
     python build.py --serve    # 생성 후 http://localhost:8000 미리보기
-    python build.py --strict   # 로컬 이미지가 하나라도 없으면 실패 (배포 전 점검용)
+    python build.py --remote   # 이미지가 없는 작업물은 Creatorlink 원본으로 임시 표시
+    python build.py --strict   # 이미지가 없는 작업물이 하나라도 있으면 실패
     python build.py --clean    # 이미지 캐시까지 지우고 처음부터 다시 생성
+
+기본 동작: 이미지 파일이 없는 작업물은 빼고 나머지로 사이트를 만듭니다 (경고 출력).
 
 content/ 의 YAML·Markdown·이미지를 읽어 templates/ 로 HTML을 만들고,
 이미지는 WebP로 변환·리사이즈·분할해서 dist/assets/ 에 넣습니다.
@@ -86,6 +89,7 @@ class Work:
     slug: str
     title: str
     category: dict
+    subcategory: dict | None = None
     image: str | None = None
     source: str | None = None
     concept: str | None = None
@@ -128,12 +132,18 @@ def read_yaml(path: Path):
         Log.fail(f"{path.relative_to(ROOT)} 형식 오류\n{e}")
 
 
-SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
 
 def load_works(site: dict) -> list[Work]:
     cats = {c["slug"]: c for c in site["categories"]}
+    subs = {c["slug"]: {s["slug"]: s for s in (c.get("subcategories") or [])} for c in site["categories"]}
+    for c in site["categories"]:   # 세부 분류 주소가 작업물 주소와 겹치지 않도록 미리 확인용
+        for sc in c.get("subcategories") or []:
+            if not SLUG_RE.match(str(sc["slug"])):
+                Log.fail(f"site.yaml: 세부 분류 slug '{sc['slug']}' 는 영문 소문자·숫자·하이픈만 쓸 수 있습니다")
     works, seen = [], set()
+    unsorted: list[str] = []
     for i, raw in enumerate(read_yaml(CONTENT / "portfolio.yaml"), 1):
         where = f"portfolio.yaml {i}번째 항목"
         for key in ("slug", "title", "category"):
@@ -141,17 +151,29 @@ def load_works(site: dict) -> list[Work]:
                 Log.fail(f"{where}: '{key}' 가 비어 있습니다")
         slug = str(raw["slug"])
         if not SLUG_RE.match(slug):
-            Log.fail(f"{where}: slug '{slug}' 는 영문 소문자·숫자·하이픈만 쓸 수 있습니다")
+            Log.fail(f"{where}: slug '{slug}' 는 영문 소문자·숫자·하이픈(-)·밑줄(_)만 쓸 수 있습니다")
         if slug in seen:
             Log.fail(f"{where}: slug '{slug}' 가 중복됩니다")
         if raw["category"] not in cats:
             Log.fail(f"{where}: category '{raw['category']}' 가 site.yaml 에 없습니다 "
                      f"(가능: {', '.join(cats)})")
+        cat_subs = subs[raw["category"]]
+        sub = None
+        if raw.get("subcategory"):
+            sub = cat_subs.get(str(raw["subcategory"]))
+            if not sub:
+                opts = ", ".join(cat_subs) or "(이 분류에는 세부 분류가 없습니다)"
+                Log.fail(f"{where} ({slug}): subcategory '{raw['subcategory']}' 가 없습니다 (가능: {opts})")
+        elif cat_subs:
+            unsorted.append(slug)
+        if slug in cat_subs:
+            Log.fail(f"{where}: slug '{slug}' 가 세부 분류 이름과 같아 주소가 겹칩니다. 다른 slug 로 바꿔주세요")
         seen.add(slug)
         works.append(Work(
             slug=slug,
             title=str(raw["title"]),
             category=cats[raw["category"]],
+            subcategory=sub,
             image=raw.get("image"),
             source=raw.get("source"),
             concept=raw.get("concept"),
@@ -161,6 +183,9 @@ def load_works(site: dict) -> list[Work]:
             structure=[str(s) for s in (raw.get("structure") or [])],
             featured=bool(raw.get("featured")),
         ))
+    if unsorted:
+        Log.warn(f"세부 분류(subcategory)가 없는 작업물 {len(unsorted)}개 — 'All' 에만 보입니다: "
+                 + ", ".join(unsorted[:8]) + (" …" if len(unsorted) > 8 else ""))
     return works
 
 
@@ -267,12 +292,26 @@ def remote_picture(url: str, cfg: dict) -> Picture:
     )
 
 
-def attach_pictures(works: list[Work], cfg: dict, strict: bool) -> None:
+def attach_pictures(works: list[Work], cfg: dict, mode: str) -> list[Work]:
+    """이미지를 붙이고, 사이트에 올릴 작업물만 돌려준다.
+
+    로컬 이미지가 없는 작업물은
+      mode="skip"   (기본) 사이트에서 빼고 경고만 출력 → 이미지를 넣으면 다음 빌드에 자동으로 나타남
+      mode="remote" Creatorlink 원본 주소를 임시로 연결 (이전 작업 중 미리보기용)
+      mode="strict" 빌드 실패
+    """
     dest_root = DIST / "assets" / "work"
+    kept: list[Work] = []
     for work in works:
         src = IMAGES / work.image if work.image else None
         if src and src.is_file():
-            cache_dir, m = process_image(src, cfg)
+            try:
+                cache_dir, m = process_image(src, cfg)
+            except Exception as e:  # noqa: BLE001 — 깨진 파일 하나 때문에 전체 배포가 멈추지 않게
+                if mode == "strict":
+                    Log.fail(f"{work.slug}: 이미지를 열 수 없습니다 ({e})")
+                Log.warn(f"{work.slug}: content/images/{work.image} 를 열 수 없어 사이트에서 뺐습니다 ({e})")
+                continue
             dest = dest_root / work.slug
             dest.mkdir(parents=True, exist_ok=True)
             for f in [m["thumb"], *(s["file"] for s in m["slices"])]:
@@ -284,14 +323,19 @@ def attach_pictures(works: list[Work], cfg: dict, strict: bool) -> None:
                 width=m["width"], height=m["height"],
             )
             Log.info(f"이미지  {work.slug}  {m['width']}×{m['height']}px → {len(m['slices'])}조각")
-        elif work.source:
-            msg = f"{work.slug}: content/images/{work.image} 없음 → Creatorlink 원본을 임시로 표시"
-            if strict:
-                Log.fail(msg)
-            Log.warn(msg)
+            kept.append(work)
+            continue
+
+        missing = f"content/images/{work.image}" if work.image else "image 항목"
+        if mode == "strict":
+            Log.fail(f"{work.slug}: {missing} 없음")
+        if mode == "remote" and work.source:
+            Log.warn(f"{work.slug}: {missing} 없음 → Creatorlink 원본을 임시로 표시")
             work.picture = remote_picture(work.source, cfg)
+            kept.append(work)
         else:
-            Log.fail(f"{work.slug}: 이미지 파일(content/images/{work.image})이 없습니다")
+            Log.warn(f"{work.slug}: {missing} 없음 → 이번 배포에서 제외 (파일을 넣으면 다시 나타납니다)")
+    return kept
 
 
 # ─────────────────────────────────────────────
@@ -324,7 +368,7 @@ def copy_static() -> dict[str, str]:
 # ─────────────────────────────────────────────
 # 페이지 생성
 # ─────────────────────────────────────────────
-def build(strict: bool = False) -> None:
+def build(mode: str = "skip") -> None:
     started = dt.datetime.now()
     site = read_yaml(CONTENT / "site.yaml")
     cfg = site["images"]
@@ -339,13 +383,18 @@ def build(strict: bool = False) -> None:
     DIST.mkdir(parents=True)
 
     print("이미지 처리 중")
-    attach_pictures(works, cfg, strict)
+    works = attach_pictures(works, cfg, mode)
+    if not works:
+        Log.fail("사이트에 올릴 작업물이 없습니다. content/images/ 에 이미지가 있는지 확인하세요")
 
     print("페이지 생성 중")
     assets = copy_static()
     featured = next((w for w in works if w.featured), works[0] if works else None)
     by_cat = {c["slug"]: [w for w in works if w.category["slug"] == c["slug"]]
               for c in site["categories"]}
+    by_sub = {(c["slug"], sc["slug"]): [w for w in by_cat[c["slug"]]
+                                        if w.subcategory and w.subcategory["slug"] == sc["slug"]]
+              for c in site["categories"] for sc in (c.get("subcategories") or [])}
 
     env = Environment(
         loader=FileSystemLoader(TEMPLATES),
@@ -355,7 +404,7 @@ def build(strict: bool = False) -> None:
     base_url = site["base_url"].rstrip("/")
     env.globals.update(
         site=site, asset=lambda name: assets[name], categories=site["categories"],
-        by_cat=by_cat, year=dt.date.today().year, base_url=base_url,
+        by_cat=by_cat, by_sub=by_sub, year=dt.date.today().year, base_url=base_url,
         og_image=(featured.picture.thumb if featured and featured.picture else ""),
     )
     env.filters["tel"] = lambda s: re.sub(r"[^0-9+]", "", s or "")
@@ -372,15 +421,21 @@ def build(strict: bool = False) -> None:
             urls.append(url)
 
     render("index.html", "/", works=works, featured=featured, notes=notes[:3])
-    render("category.html", "/work/", category=None, works=works)
+    render("category.html", "/work/", category=None, sub=None, works=works)
     for cat in site["categories"]:
-        render("category.html", f"/work/{cat['slug']}/", category=cat, works=by_cat[cat["slug"]])
         items = by_cat[cat["slug"]]
+        render("category.html", f"/work/{cat['slug']}/", category=cat, sub=None, works=items)
+        for sc in cat.get("subcategories") or []:
+            render("category.html", f"/work/{cat['slug']}/{sc['slug']}/", category=cat, sub=sc,
+                   works=[w for w in items if w.subcategory and w.subcategory["slug"] == sc["slug"]])
         for i, work in enumerate(items):
             render("work.html", work.url, work=work,
                    prev=items[i - 1] if i > 0 else None,
                    next=items[i + 1] if i + 1 < len(items) else None,
-                   related=[w for w in items if w is not work][:3])
+                   related=([w for w in items if w is not work and work.subcategory
+                             and w.subcategory is work.subcategory]
+                            + [w for w in items if w is not work and not (work.subcategory
+                               and w.subcategory is work.subcategory)])[:3])
     render("notes.html", "/notes/", notes=notes)
     for note in notes:
         render("note.html", note.url, note=note)
@@ -405,7 +460,8 @@ def build(strict: bool = False) -> None:
     print(f"\n완료  dist/  ({len(urls)}개 페이지, {secs:.1f}초)")
     if Log.warnings:
         print(f"경고 {len(Log.warnings)}건 — 위 내용을 확인하세요. "
-              f"Creatorlink 이미지는 `python tools/import_creatorlink.py --download` 로 내려받을 수 있습니다.")
+              f"이미지가 없는 작업물은 content/images/ 에 파일을 넣거나 "
+              f"`python tools/import_creatorlink.py --download` 로 받을 수 있습니다.")
 
 
 def check_limits() -> None:
@@ -445,12 +501,14 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="JIUDESIGN 정적 사이트 빌더")
     ap.add_argument("--serve", action="store_true", help="빌드 후 로컬 미리보기 서버 실행")
     ap.add_argument("--port", type=int, default=8000)
-    ap.add_argument("--strict", action="store_true", help="로컬 이미지가 없으면 실패")
+    g = ap.add_mutually_exclusive_group()
+    g.add_argument("--strict", action="store_true", help="로컬 이미지가 없는 작업물이 있으면 실패")
+    g.add_argument("--remote", action="store_true", help="로컬 이미지가 없으면 Creatorlink 원본을 임시로 표시")
     ap.add_argument("--clean", action="store_true", help="이미지 캐시를 지우고 다시 생성")
     args = ap.parse_args()
     if args.clean:
         shutil.rmtree(CACHE, ignore_errors=True)
-    build(strict=args.strict)
+    build(mode="strict" if args.strict else "remote" if args.remote else "skip")
     if args.serve:
         serve(args.port)
 
