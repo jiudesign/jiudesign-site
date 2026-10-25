@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% from "_macros.html" import card %}
+{% set title = service.title or service.name %}
+{% set description = service.description %}
+{% block jsonld %}
+<script type="application/ld+json">{{ {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": service.name,
+  "serviceType": service.name,
+  "description": service.description,
+  "url": base_url ~ service.url,
+  "provider": {"@id": base_url ~ "/#business"},
+  "areaServed": {"@type": "Country", "name": "대한민국"}
+}|tojson }}</script>
+<script type="application/ld+json">{{ {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "홈", "item": base_url ~ "/"},
+    {"@type": "ListItem", "position": 2, "name": "제작 안내", "item": base_url ~ "/services/"},
+    {"@type": "ListItem", "position": 3, "name": service.name, "item": base_url ~ service.url}
+  ]
+}|tojson }}</script>
+{% if service.faq_ld %}<script type="application/ld+json">{{ service.faq_ld|tojson }}</script>{% endif %}
+{% endblock %}
+{% block main %}
+<article class="svc">
+  <header class="svc__head">
+    <p class="work__crumb"><a class="work__cat" href="/services/">제작 안내</a></p>
+    <h1 class="svc__title">{{ service.headline }}</h1>
+    <p class="svc__lead">{{ service.lead }}</p>
+    <div class="hero__actions">
+      <a class="btn" href="tel:{{ site.contact.phone|tel }}">{{ service.name }} 문의 {{ site.contact.phone }}</a>
+      {% if service.category %}<a class="btn btn--ghost" href="/work/{{ service.category.slug }}/">포트폴리오 보기</a>{% endif %}
+    </div>
+  </header>
+
+  {% if service.points %}
+  <section class="svc__block" aria-labelledby="pts-h">
+    <h2 id="pts-h" class="section__title">{{ service.name }}, 이렇게 만듭니다</h2>
+    <div class="svc__points">
+      {% for pt in service.points %}
+      <div class="svc__point">
+        <h3>{{ pt.title }}</h3>
+        <p>{{ pt.text }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if service.process %}
+  <section class="svc__block" aria-labelledby="proc-h">
+    <h2 id="proc-h" class="section__title">진행 순서</h2>
+    <ol class="svc__process">
+      {% for st in service.process %}<li>{{ st }}</li>{% endfor %}
+    </ol>
+  </section>
+  {% endif %}
+
+  {% if works %}
+  <section class="svc__block" aria-labelledby="pf-h">
+    <div class="section__head">
+      <h2 id="pf-h" class="section__title">{{ service.name }} 포트폴리오</h2>
+      <a class="section__link" href="/work/{{ service.category.slug }}/">전체 보기</a>
+    </div>
+    <div class="grid">
+      {% for w in works %}{{ card(w) }}{% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if service.faq %}
+  <section class="svc__block" aria-labelledby="faq-h">
+    <h2 id="faq-h" class="section__title">{{ service.name }} 자주 묻는 질문</h2>
+    <div class="faq">
+      {% for f in service.faq %}
+      <details class="faq__item" {% if loop.first %}open{% endif %}>
+        <summary>{{ f.q }}</summary>
+        <p>{{ f.a }}</p>
+      </details>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</article>
+{% endblock %}

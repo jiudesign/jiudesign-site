@@ -3,10 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-{% set page_title = (title ~ " | " ~ site.title) if title is defined and title else site.title %}
-{% set page_desc = description if description is defined and description else site.description %}
+{% set page_title = (title ~ " | " ~ site.title) if title is defined and title else (seo.home_title or site.title) %}
+{% set page_desc = description if description is defined and description else (seo.home_description or site.description) %}
 <title>{{ page_title }}</title>
 <meta name="description" content="{{ page_desc }}">
+{% if seo.keywords %}<meta name="keywords" content="{{ seo.keywords|join(', ') }}">{% endif %}
+{% if seo.naver_verification %}<meta name="naver-site-verification" content="{{ seo.naver_verification }}">{% endif %}
+{% if seo.google_verification %}<meta name="google-site-verification" content="{{ seo.google_verification }}">{% endif %}
+<meta name="robots" content="index, follow">
+<link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="/rss.xml">
 <link rel="canonical" href="{{ base_url }}{{ page_url }}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="{{ site.title }}">
@@ -22,6 +27,9 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="{{ asset('style.css') }}">
 {% block head %}{% endblock %}
+{# 검색엔진이 읽는 업체 정보 (모든 페이지 공통) #}
+<script type="application/ld+json">{{ business_ld|tojson }}</script>
+{% block jsonld %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
@@ -34,6 +42,7 @@
     </a>
     <nav class="nav" aria-label="주 메뉴">
       <a href="/work/" {% if page_url.startswith('/work/') %}aria-current="page"{% endif %}>포트폴리오</a>
+      {% if services %}<a href="/services/" {% if page_url.startswith('/services/') %}aria-current="page"{% endif %}>제작 안내</a>{% endif %}
       <a href="/notes/" {% if page_url.startswith('/notes/') %}aria-current="page"{% endif %}>{{ site.pages.notes }}</a>
       <a href="/products/" {% if page_url.startswith('/products/') %}aria-current="page"{% endif %}>{{ site.pages.products }}</a>
     </nav>

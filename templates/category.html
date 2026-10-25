@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% from "_macros.html" import card, filters, subfilters %}
 {% if sub %}
-  {% set title = sub.name ~ " " ~ category.name %}
-  {% set description = category.name ~ " 중 " ~ sub.name ~ " 작업물입니다." %}
+  {% set title = sub.name ~ " " ~ category.name ~ " 포트폴리오" %}
+  {% set description = sub.name ~ " " ~ category.name ~ " 포트폴리오. " ~ category.intro %}
 {% elif category %}
-  {% set title = category.name %}
+  {% set title = category.name ~ " 포트폴리오" %}
   {% set description = category.intro %}
 {% else %}
   {% set title = "포트폴리오" %}

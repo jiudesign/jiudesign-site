@@ -1,8 +1,29 @@
 {% extends "base.html" %}
 {% from "_macros.html" import card %}
-{% set title = work.title %}
-{% set description = work.lead or site.description %}
+{% set title = work.title ~ " - " ~ ((work.subcategory.name ~ " ") if work.subcategory else "") ~ work.category.name ~ " 포트폴리오" %}
+{% set description = work.title ~ ". " ~ (work.lead or work.category.intro or site.description) %}
 {% set og_override = work.picture.thumb %}
+{% block jsonld %}
+<script type="application/ld+json">{{ {
+  "@context": "https://schema.org",
+  "@type": "CreativeWork",
+  "name": work.title,
+  "description": work.lead or work.category.name,
+  "genre": work.category.name,
+  "image": work.picture.thumb|abs,
+  "url": base_url ~ work.url,
+  "creator": {"@id": base_url ~ "/#business"}
+}|tojson }}</script>
+<script type="application/ld+json">{{ {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "포트폴리오", "item": base_url ~ "/work/"},
+    {"@type": "ListItem", "position": 2, "name": work.category.name, "item": base_url ~ "/work/" ~ work.category.slug ~ "/"},
+    {"@type": "ListItem", "position": 3, "name": work.title, "item": base_url ~ work.url}
+  ]
+}|tojson }}</script>
+{% endblock %}
 {% block body_class %}is-work{% endblock %}
 {% block main %}
 <article class="work">

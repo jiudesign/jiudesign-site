@@ -279,6 +279,41 @@ def load_notes() -> list[Note]:
     return sorted(notes, key=lambda n: n.date, reverse=True)
 
 
+def load_services(site: dict) -> list[dict]:
+    """제작 서비스 안내 페이지 (content/services.yaml). 없으면 서비스 페이지를 만들지 않음"""
+    path = CONTENT / "services.yaml"
+    if not path.exists():
+        return []
+    data = read_yaml(path) or []
+    if isinstance(data, dict):
+        data = data.get("items") or []
+    cats = {c["slug"]: c for c in site["categories"]}
+    out = []
+    for sv in data:
+        if not isinstance(sv, dict) or not sv.get("slug") or not sv.get("name"):
+            continue
+        slug = str(sv["slug"]).strip().lower()
+        if not SLUG_RE.match(slug):
+            Log.warn(f"services.yaml: 주소 이름 '{slug}' 에 쓸 수 없는 글자가 있어 건너뜀")
+            continue
+        lst = lambda k: [x for x in (sv.get(k) or []) if x]
+        out.append({
+            **sv, "slug": slug, "url": f"/services/{slug}/",
+            "headline": sv.get("headline") or sv["name"],
+            "lead": sv.get("lead") or "", "description": sv.get("description") or sv.get("lead") or "",
+            "category": cats.get(str(sv.get("category") or "")),
+            "points": [p for p in lst("points") if isinstance(p, dict) and p.get("title")],
+            "process": [str(x.get("item") if isinstance(x, dict) else x) for x in lst("process")],
+            "faq": [f for f in lst("faq") if isinstance(f, dict) and f.get("q") and f.get("a")],
+        })
+        out[-1]["faq_ld"] = {
+            "@context": "https://schema.org", "@type": "FAQPage",
+            "mainEntity": [{"@type": "Question", "name": str(f["q"]),
+                            "acceptedAnswer": {"@type": "Answer", "text": str(f["a"])}} for f in out[-1]["faq"]],
+        } if out[-1]["faq"] else None
+    return out
+
+
 def load_products() -> list[dict]:
     data = read_yaml(CONTENT / "products.yaml") or []
     if isinstance(data, dict):           # 관리자 화면 형식: items: [...]
@@ -522,6 +557,37 @@ def write_cms_config(site: dict) -> None:
                 ],
             },
             {
+                "name": "services", "label": "제작 서비스 안내", "files": [{
+                    "name": "services", "label": "제작 서비스 페이지", "file": "content/services.yaml",
+                    "description": "검색에 나오는 '상세페이지 제작', '배달앱 배너 제작' 안내 페이지입니다.",
+                    "fields": [{
+                        "label": "서비스", "name": "items", "widget": "list", "summary": "{{fields.name}}",
+                        "fields": [
+                            {"label": "주소 이름 (영문)", "name": "slug", "widget": "string", "pattern": slug_rule,
+                             "hint": "사이트 주소 /services/이름/ 에 쓰입니다. 바꾸면 검색에 쌓인 주소가 달라지니 되도록 그대로 두세요."},
+                            {"label": "서비스 이름 (검색어)", "name": "name", "widget": "string",
+                             "hint": "사람들이 검색하는 말 그대로. 예: 상세페이지 제작"},
+                            {"label": "큰 제목", "name": "headline", "widget": "string", "required": False},
+                            {"label": "소개 글", "name": "lead", "widget": "text"},
+                            {"label": "검색 결과 설명 (150자 이내)", "name": "description", "widget": "text",
+                             "required": False, "hint": "네이버·구글 검색 결과에 제목 아래 보이는 문장입니다."},
+                            {"label": "함께 보여줄 포트폴리오 분류", "name": "category", "widget": "select",
+                             "options": cat_opts, "required": False},
+                            {"label": "강점", "name": "points", "widget": "list", "required": False,
+                             "summary": "{{fields.title}}",
+                             "fields": [{"label": "제목", "name": "title", "widget": "string"},
+                                        {"label": "설명", "name": "text", "widget": "text"}]},
+                            {"label": "제작 과정", "name": "process", "widget": "list", "required": False,
+                             "field": {"label": "단계", "name": "item", "widget": "string"}},
+                            {"label": "자주 묻는 질문", "name": "faq", "widget": "list", "required": False,
+                             "summary": "{{fields.q}}",
+                             "fields": [{"label": "질문", "name": "q", "widget": "string"},
+                                        {"label": "답변", "name": "a", "widget": "text"}]},
+                        ],
+                    }],
+                }],
+            },
+            {
                 "name": "settings", "label": "디자인 상품", "files": [{
                     "name": "products", "label": "디자인 상품 목록", "file": "content/products.yaml",
                     "fields": [{
@@ -559,7 +625,8 @@ def build(mode: str = "skip") -> None:
     works = load_works(site)
     notes = load_notes()
     products = load_products()
-    Log.info(f"작업물 {len(works)}개 · 노트 {len(notes)}개 · 상품 {len(products)}개")
+    services = load_services(site)
+    Log.info(f"작업물 {len(works)}개 · 노트 {len(notes)}개 · 상품 {len(products)}개 · 서비스 {len(services)}개")
 
     shutil.rmtree(DIST, ignore_errors=True)
     DIST.mkdir(parents=True)
@@ -589,7 +656,28 @@ def build(mode: str = "skip") -> None:
         site=site, asset=lambda name: assets[name], categories=site["categories"],
         by_cat=by_cat, by_sub=by_sub, year=dt.date.today().year, base_url=base_url,
         og_image=(featured.picture.thumb if featured and featured.picture else ""),
+        services=services, seo=site.get("seo") or {},
     )
+    env.filters["abs"] = lambda u: u if (u or "").startswith("http") else base_url + (u or "")
+    seo = site.get("seo") or {}
+    og_abs = (base_url + featured.picture.thumb) if featured and featured.picture and not featured.picture.thumb.startswith("http") \
+        else (featured.picture.thumb if featured and featured.picture else base_url + "/favicon.svg")
+    env.globals["business_ld"] = {
+        "@context": "https://schema.org",
+        "@type": "ProfessionalService",
+        "@id": base_url + "/#business",
+        "name": site["title"],
+        "alternateName": site["name"],
+        "url": base_url + "/",
+        "telephone": (site.get("contact") or {}).get("phone", ""),
+        "image": og_abs,
+        "description": seo.get("home_description") or site["description"],
+        "areaServed": {"@type": "Country", "name": "대한민국"},
+        "knowsAbout": seo.get("keywords") or [],
+        "makesOffer": [{"@type": "Offer", "itemOffered": {
+            "@type": "Service", "name": sv["name"], "url": base_url + sv["url"],
+            "description": sv["description"]}} for sv in services],
+    }
     env.filters["tel"] = lambda s: re.sub(r"[^0-9+]", "", s or "")
     env.filters["kdate"] = lambda d: f"{d.year}. {d.month}. {d.day}."
 
@@ -619,6 +707,11 @@ def build(mode: str = "skip") -> None:
                              and w.subcategory is work.subcategory]
                             + [w for w in items if w is not work and not (work.subcategory
                                and w.subcategory is work.subcategory)])[:3])
+    if services:
+        render("services.html", "/services/")
+        for sv in services:
+            render("service.html", sv["url"], service=sv,
+                   works=(by_cat[sv["category"]["slug"]][:8] if sv["category"] else []))
     render("notes.html", "/notes/", notes=notes)
     for note in notes:
         render("note.html", note.url, note=note)
@@ -632,6 +725,7 @@ def build(mode: str = "skip") -> None:
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"  <url><loc>{base_url}{u}</loc><lastmod>{today}</lastmod></url>\n" for u in urls)
         + "</urlset>\n", encoding="utf-8")
+    write_rss(site, base_url, works, notes)
     (DIST / "robots.txt").write_text(
         f"User-agent: *\nAllow: /\nDisallow: /admin/\nSitemap: {base_url}/sitemap.xml\n")
     # Cloudflare Pages 캐시 헤더: 해시가 붙은 파일은 1년, HTML 은 매번 확인
@@ -646,6 +740,29 @@ def build(mode: str = "skip") -> None:
         print(f"경고 {len(Log.warnings)}건 — 위 내용을 확인하세요. "
               f"이미지가 없는 작업물은 content/images/ 에 파일을 넣거나 "
               f"`python tools/import_creatorlink.py --download` 로 받을 수 있습니다.")
+
+
+def write_rss(site: dict, base_url: str, works: list[Work], notes: list[Note]) -> None:
+    """네이버 서치어드바이저에 제출할 RSS — 최근 노트와 작업물"""
+    from email.utils import format_datetime
+    from xml.sax.saxutils import escape
+    now = dt.datetime.now(dt.timezone.utc)
+    rows = []
+    for n in notes[:20]:
+        when = dt.datetime(n.date.year, n.date.month, n.date.day, tzinfo=dt.timezone.utc)
+        rows.append((when, n.title, base_url + n.url, n.summary))
+    for w in works[:30]:
+        desc = " ".join(x for x in (w.category["name"], w.subcategory["name"] if w.subcategory else "", w.lead) if x)
+        rows.append((now, w.title, base_url + w.url, desc))
+    items = "".join(
+        f"<item><title>{escape(t)}</title><link>{escape(u)}</link><guid>{escape(u)}</guid>"
+        f"<description>{escape(d)}</description><pubDate>{format_datetime(when)}</pubDate></item>\n"
+        for when, t, u, d in rows)
+    (DIST / "rss.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel>\n'
+        f"<title>{escape(site['title'])}</title><link>{escape(base_url)}/</link>"
+        f"<description>{escape((site.get('seo') or {}).get('home_description') or site['description'])}</description>"
+        f"<language>ko</language>\n{items}</channel></rss>\n", encoding="utf-8")
 
 
 def check_limits() -> None:

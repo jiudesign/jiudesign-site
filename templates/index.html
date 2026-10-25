@@ -15,17 +15,48 @@
   {% if featured %}
   <figure class="viewer" aria-label="{{ featured.title }} 미리보기">
     <a class="viewer__screen" href="{{ featured.url }}" tabindex="-1" aria-hidden="true">
-      <span class="viewer__reel">
-        {% for s in featured.picture.slices %}<img src="{{ s.url }}" alt="" {% if s.w %}width="{{ s.w }}" height="{{ s.h }}"{% endif %} {% if not loop.first %}loading="lazy"{% endif %}>{% endfor %}
-      </span>
+      <div class="viewer__reel">
+        <div class="viewer__imgs">
+          {% for s in featured.picture.slices %}<img src="{{ s.url }}" alt="" {% if s.w %}width="{{ s.w }}" height="{{ s.h }}"{% endif %} {% if not loop.first %}loading="lazy"{% endif %}>{% endfor %}
+        </div>
+        {# 이미지 아래 남는 자리에 이 작업의 설명을 이어서 보여줌 #}
+        <div class="viewer__note">
+          <p class="viewer__note-cat">{{ featured.subcategory.name if featured.subcategory else featured.category.name }}</p>
+          <p class="viewer__note-title">{{ featured.title }}</p>
+          {% if featured.client %}<p class="viewer__note-row"><b>의뢰</b>{{ featured.client }}</p>{% endif %}
+          {% if featured.summary %}<p class="viewer__note-row"><b>작업 내용</b>{{ featured.summary }}</p>{% endif %}
+          {% if featured.concept %}<p class="viewer__note-row"><b>컨셉</b>{{ featured.concept }}</p>{% endif %}
+          {% if featured.tone %}<p class="viewer__note-row"><b>톤앤매너</b>{{ featured.tone }}</p>{% endif %}
+          {% if featured.structure %}
+          <div class="viewer__note-row"><b>구성</b>
+            <ol class="viewer__flow">{% for st in featured.structure %}<li>{{ st }}</li>{% endfor %}</ol>
+          </div>
+          {% endif %}
+          <p class="viewer__note-more">상세페이지 전체 보기</p>
+        </div>
+      </div>
     </a>
     <figcaption class="viewer__cap">
       <a href="{{ featured.url }}">{{ featured.title }}</a>
-      {% if featured.lead %}<span>{{ featured.lead }}</span>{% endif %}
     </figcaption>
   </figure>
   {% endif %}
 </section>
+
+{% if services %}
+<section class="section section--svc" aria-labelledby="svc-h">
+  <h2 id="svc-h" class="section__title">제작 안내</h2>
+  <div class="svc-list svc-list--home">
+    {% for sv in services %}
+    <a class="svc-row" href="{{ sv.url }}">
+      <h3 class="svc-row__name">{{ sv.name }}</h3>
+      <p class="svc-row__lead">{{ sv.lead }}</p>
+      <span class="svc-row__more">{{ sv.name }} 안내 보기</span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 
 <section class="section" aria-labelledby="works-h">
   <div class="section__head">

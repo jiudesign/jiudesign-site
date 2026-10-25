@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% set title = "제작 안내" %}
+{% set description = services|map(attribute="name")|join(", ") ~ " 안내. " ~ (seo.home_description or site.description) %}
+{% block main %}
+<section class="section section--page">
+  <div class="pagehead">
+    <h1 class="pagehead__title">제작 안내</h1>
+    <p class="pagehead__intro">맡기실 작업을 골라 제작 과정과 포트폴리오를 확인해 보세요.</p>
+  </div>
+  <div class="svc-list">
+    {% for sv in services %}
+    <a class="svc-row" href="{{ sv.url }}">
+      <h2 class="svc-row__name">{{ sv.name }}</h2>
+      <p class="svc-row__lead">{{ sv.lead }}</p>
+      <span class="svc-row__more">{{ sv.name }} 안내 보기</span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
