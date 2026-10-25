@@ -64,8 +64,12 @@
     <p class="section__note">디자이너를 시작한 후 차곡차곡 쌓아온 작업물입니다.</p>
   </div>
   {{ filters(None) }}
-  <div class="grid">
-    {% for w in works[:12] %}{{ card(w, eager=loop.index <= 4) }}{% endfor %}
+  {# 작업물 전체를 넣어 두고, 브라우저에서 방문할 때마다 무작위로 12개를 골라 보여줌.
+     스크립트가 꺼져 있으면 최근 등록한 12개가 그대로 보임 #}
+  <div class="grid" data-shuffle="12">
+    {% for w in works %}
+    {% if loop.index <= 12 %}{{ card(w, eager=loop.index <= 4) }}{% else %}<div hidden>{{ card(w) }}</div>{% endif %}
+    {% endfor %}
   </div>
   {% if works|length > 12 %}
   <p class="more"><a class="btn btn--ghost" href="/work/">작업물 {{ works|length }}개 모두 보기</a></p>
@@ -85,4 +89,7 @@
   </ul>
 </section>
 {% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ asset('shuffle.js') }}" defer></script>
 {% endblock %}
