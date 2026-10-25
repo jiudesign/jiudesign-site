@@ -70,3 +70,8 @@ images:
   thumb_width: 640
   thumb_height: 960       # 썸네일은 상단 기준으로 잘라 세로형 2:3
   quality: 82
+
+# 관리자 화면(/admin)이 연결할 GitHub 저장소
+cms:
+  repo: jiudesign/jiudesign-site
+  branch: main

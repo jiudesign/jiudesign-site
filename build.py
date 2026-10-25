@@ -133,63 +133,120 @@ def read_yaml(path: Path):
 
 
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+WORKS_DIR = CONTENT / "works"
+
+
+def _to_datetime(value) -> dt.datetime | None:
+    """관리자 화면이 저장하는 날짜(문자열·date·datetime)를 모두 비교 가능한 datetime 으로"""
+    if value is None or value == "":
+        return None
+    if isinstance(value, dt.datetime):
+        d = value
+    elif isinstance(value, dt.date):
+        d = dt.datetime(value.year, value.month, value.day)
+    else:
+        try:
+            d = dt.datetime.fromisoformat(str(value).strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return d.replace(tzinfo=None) if d.tzinfo is None else d.astimezone(dt.timezone.utc).replace(tzinfo=None)
+
+
+def _image_path(value) -> str | None:
+    """'work/a.png', '/work/a.png', 'content/images/work/a.png' 모두 content/images 기준 경로로"""
+    if not value:
+        return None
+    v = str(value).strip().lstrip("/")
+    for prefix in ("content/images/", "images/"):
+        if v.startswith(prefix):
+            v = v[len(prefix):]
+    return v
+
+
+def _raw_works() -> list[tuple[str, dict, str | None]]:
+    """(어디서 읽었는지, 내용, 파일 이름 slug) 목록. content/works/ 가 있으면 그것을, 없으면 portfolio.yaml"""
+    if WORKS_DIR.is_dir():
+        out = []
+        for path in sorted([*WORKS_DIR.glob("*.yml"), *WORKS_DIR.glob("*.yaml")]):
+            try:
+                data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            except yaml.YAMLError as e:
+                Log.warn(f"works/{path.name}: 형식 오류라 건너뜀 ({str(e).splitlines()[0]})")
+                continue
+            if not isinstance(data, dict):
+                Log.warn(f"works/{path.name}: 내용이 비어 있거나 형식이 달라 건너뜀")
+                continue
+            out.append((f"works/{path.name}", data, path.stem.lower()))
+        if (CONTENT / "portfolio.yaml").exists():
+            Log.warn("content/works/ 를 사용합니다. portfolio.yaml 은 더 이상 읽지 않습니다")
+        return out
+    items = read_yaml(CONTENT / "portfolio.yaml") or []
+    return [(f"portfolio.yaml {i}번째 항목", raw, None) for i, raw in enumerate(items, 1) if isinstance(raw, dict)]
 
 
 def load_works(site: dict) -> list[Work]:
+    """작업물 읽기. 관리자 화면에서 들어온 실수 하나 때문에 배포 전체가 멈추지 않도록,
+    문제 있는 작업물은 경고를 남기고 건너뜁니다."""
     cats = {c["slug"]: c for c in site["categories"]}
     subs = {c["slug"]: {s["slug"]: s for s in (c.get("subcategories") or [])} for c in site["categories"]}
-    for c in site["categories"]:   # 세부 분류 주소가 작업물 주소와 겹치지 않도록 미리 확인용
+    for c in site["categories"]:
         for sc in c.get("subcategories") or []:
             if not SLUG_RE.match(str(sc["slug"])):
                 Log.fail(f"site.yaml: 세부 분류 slug '{sc['slug']}' 는 영문 소문자·숫자·하이픈만 쓸 수 있습니다")
-    works, seen = [], set()
+    entries: list[tuple[dt.datetime | None, int, Work]] = []
+    seen: set[str] = set()
     unsorted: list[str] = []
-    for i, raw in enumerate(read_yaml(CONTENT / "portfolio.yaml"), 1):
-        where = f"portfolio.yaml {i}번째 항목"
-        for key in ("slug", "title", "category"):
-            if not raw.get(key):
-                Log.fail(f"{where}: '{key}' 가 비어 있습니다")
-        slug = str(raw["slug"])
+    for order, (where, raw, file_slug) in enumerate(_raw_works()):
+        slug = str(raw.get("slug") or file_slug or "").strip().lower()
+        title = str(raw.get("title") or "").strip()
+        category = str(raw.get("category") or "").strip()
+        if not slug or not title or not category:
+            missing = [k for k, v in (("slug", slug), ("제목", title), ("분류", category)) if not v]
+            Log.warn(f"{where}: {', '.join(missing)} 이(가) 비어 있어 건너뜀")
+            continue
         if not SLUG_RE.match(slug):
-            Log.fail(f"{where}: slug '{slug}' 는 영문 소문자·숫자·하이픈(-)·밑줄(_)만 쓸 수 있습니다")
+            Log.warn(f"{where}: 주소 이름 '{slug}' 에 쓸 수 없는 글자가 있어 건너뜀 (영문 소문자·숫자·-·_ 만 가능)")
+            continue
         if slug in seen:
-            Log.fail(f"{where}: slug '{slug}' 가 중복됩니다")
-        if raw["category"] not in cats:
-            Log.fail(f"{where}: category '{raw['category']}' 가 site.yaml 에 없습니다 "
-                     f"(가능: {', '.join(cats)})")
-        cat_subs = subs[raw["category"]]
+            Log.warn(f"{where}: 주소 이름 '{slug}' 가 다른 작업물과 겹쳐 건너뜀")
+            continue
+        if category not in cats:
+            Log.warn(f"{where}: 분류 '{category}' 가 site.yaml 에 없어 건너뜀 (가능: {', '.join(cats)})")
+            continue
+        cat_subs = subs[category]
         sub = None
-        if raw.get("subcategory"):
-            sub = cat_subs.get(str(raw["subcategory"]))
+        raw_sub = str(raw.get("subcategory") or "").strip()
+        if raw_sub:
+            sub = cat_subs.get(raw_sub)
             if not sub:
-                opts = ", ".join(cat_subs) or "(이 분류에는 세부 분류가 없습니다)"
-                Log.fail(f"{where} ({slug}): subcategory '{raw['subcategory']}' 가 없습니다 (가능: {opts})")
-        elif cat_subs:
+                Log.warn(f"{where} ({slug}): 세부 분류 '{raw_sub}' 는 '{cats[category]['name']}' 에 없어 무시함")
+        if not sub and cat_subs:
             unsorted.append(slug)
         if slug in cat_subs:
-            Log.fail(f"{where}: slug '{slug}' 가 세부 분류 이름과 같아 주소가 겹칩니다. 다른 slug 로 바꿔주세요")
+            Log.warn(f"{where}: 주소 이름 '{slug}' 가 세부 분류 이름과 같아 건너뜀. 다른 이름으로 바꿔주세요")
+            continue
         seen.add(slug)
-        works.append(Work(
-            slug=slug,
-            title=str(raw["title"]),
-            category=cats[raw["category"]],
-            subcategory=sub,
-            image=raw.get("image"),
-            source=raw.get("source"),
-            concept=raw.get("concept"),
-            tone=raw.get("tone"),
-            summary=raw.get("summary"),
-            client=raw.get("client"),
-            structure=[str(s) for s in (raw.get("structure") or [])],
+        structure = raw.get("structure") or []
+        if isinstance(structure, str):
+            structure = [s.strip() for s in re.split(r"→|\n", structure) if s.strip()]
+        work = Work(
+            slug=slug, title=title, category=cats[category], subcategory=sub,
+            image=_image_path(raw.get("image")), source=raw.get("source"),
+            concept=raw.get("concept") or None, tone=raw.get("tone") or None,
+            summary=raw.get("summary") or None, client=raw.get("client") or None,
+            structure=[str(x.get("item") if isinstance(x, dict) else x) for x in structure if x],
             featured=bool(raw.get("featured")),
-        ))
+        )
+        entries.append((_to_datetime(raw.get("date")), order, work))
     if unsorted:
-        Log.warn(f"세부 분류(subcategory)가 없는 작업물 {len(unsorted)}개 — 'All' 에만 보입니다: "
+        Log.warn(f"세부 분류가 없는 작업물 {len(unsorted)}개 — 'All' 에만 보입니다: "
                  + ", ".join(unsorted[:8]) + (" …" if len(unsorted) > 8 else ""))
-    return works
+    # 등록일이 최근인 것부터. 등록일이 없으면 파일 순서대로 그 뒤에
+    entries.sort(key=lambda e: (e[0] is None, -(e[0].timestamp() if e[0] else 0), e[1]))
+    return [w for _, _, w in entries]
 
 
-FRONT_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n(.*)$", re.S)
+FRONT_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", re.S)
 
 
 def load_notes() -> list[Note]:
@@ -198,22 +255,43 @@ def load_notes() -> list[Note]:
         text = path.read_text(encoding="utf-8")
         m = FRONT_RE.match(text)
         if not m:
-            Log.fail(f"notes/{path.name}: 맨 위에 --- 로 감싼 title/date 정보가 필요합니다")
-        meta = yaml.safe_load(m.group(1)) or {}
-        date = meta.get("date")
-        if isinstance(date, str):
-            date = dt.date.fromisoformat(date)
-        if not isinstance(date, dt.date):
-            Log.fail(f"notes/{path.name}: date 는 2026-10-25 형식이어야 합니다")
+            Log.warn(f"notes/{path.name}: 맨 위 --- 정보가 없어 건너뜀")
+            continue
+        try:
+            meta = yaml.safe_load(m.group(1)) or {}
+        except yaml.YAMLError:
+            Log.warn(f"notes/{path.name}: 형식 오류라 건너뜀")
+            continue
+        when = _to_datetime(meta.get("date"))
+        if not when:
+            Log.warn(f"notes/{path.name}: 날짜가 없어 건너뜀")
+            continue
         slug = re.sub(r"^\d{4}-\d{2}-\d{2}-", "", path.stem)
+        if not SLUG_RE.match(slug.lower()):
+            slug = when.strftime("%Y%m%d") + "-" + hashlib.sha1(path.stem.encode()).hexdigest()[:6]
         notes.append(Note(
-            slug=slug,
+            slug=slug.lower(),
             title=str(meta.get("title") or slug),
-            date=date,
+            date=when.date(),
             summary=str(meta.get("summary") or ""),
             html=markdown.markdown(m.group(2), extensions=["extra", "sane_lists"]),
         ))
     return sorted(notes, key=lambda n: n.date, reverse=True)
+
+
+def load_products() -> list[dict]:
+    data = read_yaml(CONTENT / "products.yaml") or []
+    if isinstance(data, dict):           # 관리자 화면 형식: items: [...]
+        data = data.get("items") or []
+    out = []
+    for p in data:
+        if not isinstance(p, dict) or not p.get("name"):
+            continue
+        inc = p.get("includes") or []
+        p = {**p, "includes": [str(x.get("item") if isinstance(x, dict) else x) for x in inc if x],
+             "price": p.get("price") or "문의", "note": p.get("note") or ""}
+        out.append(p)
+    return out
 
 
 # ─────────────────────────────────────────────
@@ -366,6 +444,110 @@ def copy_static() -> dict[str, str]:
 
 
 # ─────────────────────────────────────────────
+# 관리자 화면 (/admin) 설정 — site.yaml 의 분류가 바뀌면 선택 목록도 자동으로 따라갑니다
+# ─────────────────────────────────────────────
+def write_cms_config(site: dict) -> None:
+    cms = site.get("cms") or {}
+    repo = cms.get("repo")
+    if not repo:
+        Log.warn("site.yaml 에 cms.repo 가 없어 관리자 화면(/admin)을 만들지 않았습니다")
+        shutil.rmtree(DIST / "admin", ignore_errors=True)
+        return
+    cat_opts = [{"label": c["name"], "value": c["slug"]} for c in site["categories"]]
+    sub_opts = [{"label": f"{sc['name']}  ({c['name']})", "value": sc["slug"]}
+                for c in site["categories"] for sc in (c.get("subcategories") or [])]
+    slug_rule = ["^[a-z0-9][a-z0-9_-]*$", "영문 소문자·숫자·하이픈(-)·밑줄(_)만 쓸 수 있습니다"]
+    config = {
+        "backend": {"name": "github", "repo": repo, "branch": cms.get("branch", "main"),
+                    "commit_messages": {
+                        "create": "관리자: {{collection}} 추가 — {{slug}}",
+                        "update": "관리자: {{collection}} 수정 — {{slug}}",
+                        "delete": "관리자: {{collection}} 삭제 — {{slug}}",
+                        "uploadMedia": "관리자: 이미지 업로드 — {{path}}",
+                        "deleteMedia": "관리자: 이미지 삭제 — {{path}}"}},
+        "site_url": site["base_url"],
+        "display_url": site["base_url"],
+        "logo_url": "/favicon.svg",
+        "media_folder": "content/images/work",
+        "public_folder": "work",
+        "slug": {"encoding": "ascii", "clean_accents": True, "sanitize_replacement": "-"},
+        "collections": [
+            {
+                "name": "works", "label": "작업물", "label_singular": "작업물",
+                "description": "저장하면 몇 분 뒤 사이트에 반영됩니다. 등록일이 최근인 작업물이 앞에 보입니다.",
+                "folder": "content/works", "extension": "yml", "format": "yaml",
+                "create": True, "delete": True,
+                "slug": "{{year}}{{month}}{{day}}-{{hour}}{{minute}}{{second}}",
+                "identifier_field": "title",
+                "summary": "{{title}}",
+                "sortable_fields": ["date", "title", "category"],
+                "fields": [
+                    {"label": "제목", "name": "title", "widget": "string"},
+                    {"label": "대분류", "name": "category", "widget": "select",
+                     "options": cat_opts, "default": cat_opts[0]["value"]},
+                    {"label": "세부 분류", "name": "subcategory", "widget": "select", "required": False,
+                     "options": sub_opts,
+                     "hint": "상세페이지 디자인일 때만 고르세요. 비워두면 All 에만 보입니다."},
+                    {"label": "이미지", "name": "image", "widget": "image",
+                     "hint": "상세페이지 원본(세로로 긴 이미지) 그대로 올리면 자동으로 변환·분할됩니다. 파일 하나 25MB 이하."},
+                    {"label": "컨셉", "name": "concept", "widget": "string", "required": False},
+                    {"label": "톤앤매너", "name": "tone", "widget": "string", "required": False},
+                    {"label": "작업 내용", "name": "summary", "widget": "text", "required": False},
+                    {"label": "의뢰처", "name": "client", "widget": "string", "required": False},
+                    {"label": "구성 순서", "name": "structure", "widget": "list", "required": False,
+                     "field": {"label": "항목", "name": "item", "widget": "string"},
+                     "hint": "상세페이지 구성을 순서대로 하나씩 추가하세요."},
+                    {"label": "메인 화면 대표 작업", "name": "featured", "widget": "boolean",
+                     "default": False, "required": False,
+                     "hint": "켜면 메인 화면 오른쪽 휴대폰 화면에서 흘러갑니다. 하나만 켜세요."},
+                    {"label": "등록일", "name": "date", "widget": "datetime", "default": "{{now}}",
+                     "hint": "날짜가 최근일수록 앞에 보입니다. 순서를 바꾸고 싶으면 날짜를 고치세요."},
+                    {"label": "주소 이름 (선택)", "name": "slug", "widget": "string", "required": False,
+                     "pattern": slug_rule,
+                     "hint": "사이트 주소에 쓰이는 영문 이름입니다. 예: honey-gift. 비워두면 자동으로 정해집니다."},
+                ],
+            },
+            {
+                "name": "notes", "label": "디자인 노트", "label_singular": "노트",
+                "folder": "content/notes", "extension": "md", "format": "frontmatter",
+                "create": True, "delete": True,
+                "slug": "{{year}}-{{month}}-{{day}}-{{hour}}{{minute}}{{second}}",
+                "identifier_field": "title", "sortable_fields": ["date", "title"],
+                "fields": [
+                    {"label": "제목", "name": "title", "widget": "string"},
+                    {"label": "날짜", "name": "date", "widget": "datetime", "default": "{{now}}",
+                     "time_format": False, "date_format": "YYYY-MM-DD"},
+                    {"label": "한 줄 요약", "name": "summary", "widget": "string", "required": False},
+                    {"label": "본문", "name": "body", "widget": "markdown"},
+                ],
+            },
+            {
+                "name": "settings", "label": "디자인 상품", "files": [{
+                    "name": "products", "label": "디자인 상품 목록", "file": "content/products.yaml",
+                    "fields": [{
+                        "label": "상품", "name": "items", "widget": "list",
+                        "summary": "{{fields.name}} — {{fields.price}}",
+                        "fields": [
+                            {"label": "상품 이름", "name": "name", "widget": "string"},
+                            {"label": "가격", "name": "price", "widget": "string", "default": "문의",
+                             "hint": "예: 30만원부터, 문의"},
+                            {"label": "포함 내용", "name": "includes", "widget": "list", "required": False,
+                             "field": {"label": "항목", "name": "item", "widget": "string"}},
+                            {"label": "참고 문구", "name": "note", "widget": "string", "required": False},
+                        ],
+                    }],
+                }],
+            },
+        ],
+    }
+    out = DIST / "admin"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "config.yml").write_text(
+        "# build.py 가 site.yaml 을 보고 자동으로 만드는 파일입니다. 직접 고치지 마세요.\n"
+        + yaml.safe_dump(config, allow_unicode=True, sort_keys=False, width=200), encoding="utf-8")
+
+
+# ─────────────────────────────────────────────
 # 페이지 생성
 # ─────────────────────────────────────────────
 def build(mode: str = "skip") -> None:
@@ -376,7 +558,7 @@ def build(mode: str = "skip") -> None:
     print("콘텐츠 읽는 중")
     works = load_works(site)
     notes = load_notes()
-    products = read_yaml(CONTENT / "products.yaml")
+    products = load_products()
     Log.info(f"작업물 {len(works)}개 · 노트 {len(notes)}개 · 상품 {len(products)}개")
 
     shutil.rmtree(DIST, ignore_errors=True)
@@ -389,6 +571,7 @@ def build(mode: str = "skip") -> None:
 
     print("페이지 생성 중")
     assets = copy_static()
+    write_cms_config(site)
     featured = next((w for w in works if w.featured), works[0] if works else None)
     by_cat = {c["slug"]: [w for w in works if w.category["slug"] == c["slug"]]
               for c in site["categories"]}
@@ -449,7 +632,8 @@ def build(mode: str = "skip") -> None:
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"  <url><loc>{base_url}{u}</loc><lastmod>{today}</lastmod></url>\n" for u in urls)
         + "</urlset>\n", encoding="utf-8")
-    (DIST / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {base_url}/sitemap.xml\n")
+    (DIST / "robots.txt").write_text(
+        f"User-agent: *\nAllow: /\nDisallow: /admin/\nSitemap: {base_url}/sitemap.xml\n")
     # Cloudflare Pages 캐시 헤더: 해시가 붙은 파일은 1년, HTML 은 매번 확인
     (DIST / "_headers").write_text(
         "/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n"

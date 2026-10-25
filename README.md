@@ -184,3 +184,35 @@ build.py             빌더 → dist/
 | `python build.py --remote` | 이미지가 없는 작업물을 Creatorlink 원본으로 임시 표시 |
 | `python build.py --strict` | 이미지가 없는 작업물이 하나라도 있으면 실패 |
 | `python build.py --clean` | 이미지 캐시를 지우고 전부 다시 변환 (site.yaml 이미지 설정을 바꿨을 때는 자동으로 다시 변환되므로 보통 불필요) |
+
+---
+
+## 관리자 화면 (/admin) — 터미널 없이 브라우저에서 추가·수정
+
+`https://<사이트 주소>/admin/` 에서 작업물·디자인 노트·디자인 상품을 추가하고 고칠 수 있습니다.
+저장하면 GitHub 저장소에 바로 반영되고, Cloudflare 가 자동으로 다시 배포합니다 (5분 정도).
+
+### 처음 한 번: 구조 변환
+관리자 화면은 작업물을 **작업물마다 파일 하나**(`content/works/*.yml`)로 다룹니다.
+
+```bash
+python tools/migrate_to_cms.py           # 미리보기
+python tools/migrate_to_cms.py --apply   # 변환
+python build.py                          # 확인
+git add -A && git commit -m "관리자 화면 구조로 변환" && git push
+```
+
+### 처음 한 번: 로그인용 토큰 만들기
+1. GitHub → Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate new token
+2. Repository access: **Only select repositories** → `jiudesign-site`
+3. Permissions → Repository permissions → **Contents: Read and write**
+4. 만든 토큰을 `/admin/` 로그인 화면의 토큰 로그인에 붙여넣기 (브라우저에 저장되어 다음부터는 바로 들어갑니다)
+
+토큰은 다른 사람에게 보여주거나 채팅·메일에 붙이지 마세요. 유출되면 GitHub 에서 바로 삭제하고 새로 만들면 됩니다.
+
+### 관리자 화면을 쓴 뒤 내 컴퓨터에서 작업할 때
+관리자 화면에서 바꾼 내용은 GitHub 에만 있습니다. 터미널 작업 전에 **먼저 받아오세요.**
+
+```bash
+git pull
+```
